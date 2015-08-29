@@ -1,28 +1,54 @@
 package main
 
-/*
-#include "net.h"
-#include "net.c"
-*/
-import "C"
 import "fmt"
-import "unsafe"
 import "math/rand"
 import "runtime"
+
+const WEIGHT_OFFSET = 10
+const NUMBER_INPUTS = 5
+const NEURON_SIZE = 1 + 2 * NUMBER_INPUTS
+
 type Network struct {
-  net unsafe.Pointer
-  inputs unsafe.Pointer
-  outputs unsafe.Pointer
+  net []byte
+  inputs []byte
+  outputs []byte
   job_size int
   network_size int
 }
 
-func create_buffer(buffer_size int) ([]byte, unsafe.Pointer) {
-  var buffer []byte
-  buffer = make([]byte, buffer_size)
-  var buffer_pointer = unsafe.Pointer(&(buffer[0]))
-  return buffer, buffer_pointer
+func calculate_weight(value int, weight int) (int){
+  if weight < 127 {
+    return value - value * ((127.0 - weight) / 255) 
+  } else {
+    return value + (255 - value) * ((weight - 127) / 255)
+  }
 }
+
+func (network *Network) run_neurons(start_index int) {
+  end_index := start_index + network.job_size
+  if (end_index > network.network_size) {
+    end_index = network.network_size
+  }
+  //printf("Let's do some thinking!\n");
+  for idx := start_index; idx < end_index; idx++ {
+    //printf("Neuron %u\n", idx);
+    node_weight := network.net[idx * NEURON_SIZE + WEIGHT_OFFSET]
+    
+    sum := 0
+    for input := 0; input < NUMBER_INPUTS; input += 1 {
+      input_offset := network.net[idx * NEURON_SIZE + input]
+      input_index := (idx + int(input_offset)) % network.network_size
+      input_value := network.inputs[input_index]
+      input_weight := network.net[idx * NEURON_SIZE + input + NUMBER_INPUTS];
+      //printf("Input %u, weight %u, offset %u\n", input, input_weight, input_offset);
+      sum += calculate_weight(int(input_value), int(input_weight));
+    }
+    total := sum / NUMBER_INPUTS;
+    output := calculate_weight(total, int(node_weight));
+    network.outputs[idx] = byte(output);
+  }
+}
+
 
 func randomize_buffer(slice []byte) {
   for idx, _ := range slice {
@@ -36,13 +62,14 @@ func worker(requests chan int,
   worker_id int) {
   
     for request := range requests {
-      C.run_neurons(network.net, network.inputs, network.outputs, C.int(request), C.int(network.job_size) , C.int(network.network_size))
+      network.run_neurons(request)
       responses <- request
     }
 }
 
 func start_workers(n int, network *Network) (chan int, chan int){
   q_size := (network.network_size / network.job_size) + 10
+  fmt.Printf("Q %d\n", q_size)
   requests := make(chan int, q_size)
   responses := make(chan int, q_size)
   for i:=0; i< n; i++ {
@@ -54,7 +81,7 @@ func start_workers(n int, network *Network) (chan int, chan int){
 
 func run_network(requests chan int, responses chan int, job_size int, network_size int) {
   num_requests := 0
-  for i := 0;i < network_size; i+= job_size{
+  for i := 0;i < network_size; i += job_size{
     requests <- i
     num_requests += 1
   }
@@ -66,21 +93,21 @@ func run_network(requests chan int, responses chan int, job_size int, network_si
   
 }
 func main() {
-  number_nodes := 1000000
+  number_nodes := 10000000
   random_seed := 120101
-  iterations := 1000
-  job_size := number_nodes / 10
+  iterations := 100
   num_workers := 8
+  job_size := number_nodes / num_workers
   fmt.Println("Initializing...")
-  runtime.GOMAXPROCS(num_workers + 1)
-  var net_slice, net = create_buffer(number_nodes * C.NEURON_SIZE)
-  var input_slice, inputs = create_buffer(number_nodes)
-  var output_slice, outputs = create_buffer(number_nodes)
+  runtime.GOMAXPROCS(num_workers * 2 + 10)
+  var net = make([]byte, number_nodes * NEURON_SIZE)
+  var inputs = make([]byte, number_nodes)
+  var outputs = make([]byte, number_nodes)
   
   // randomize the network
   rand.Seed(int64(random_seed))
-  randomize_buffer(net_slice)
-  randomize_buffer(input_slice)
+  randomize_buffer(net)
+  randomize_buffer(inputs)
   
   network := &Network{
     net: net,
@@ -93,15 +120,16 @@ func main() {
   requests, responses := start_workers(num_workers, network)
   
   fmt.Println("Now running")
-  fmt.Println(input_slice[0:20])
+  fmt.Println(inputs[0:20])
   for i := 0; i < iterations; i++ {
     
     //swap the input and output buffers
     run_network(requests, responses, job_size, number_nodes)
-    temp_ptr, temp_slice := inputs, input_slice
-    inputs, input_slice = outputs, output_slice
-    outputs, output_slice = temp_ptr, temp_slice
+    //fmt.Println(output[0:20])
+    temp_ptr := inputs
+    inputs = outputs
+    outputs = temp_ptr
   }
-  fmt.Println(output_slice[0:20])
+  fmt.Println(outputs[0:20])
   fmt.Printf("All done...\n")
 }

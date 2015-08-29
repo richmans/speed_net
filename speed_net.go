@@ -22,8 +22,8 @@ func randomize_buffer(slice []byte) {
 }
 
 func main() {
-  number_nodes := 100  
-  random_seed := 12010
+  number_nodes := 10  
+  random_seed := 120101
   iterations := 1000
   //step_size := number_nodes / 1000
   var net_slice, net = create_buffer(number_nodes * C.NEURON_SIZE)
@@ -38,6 +38,7 @@ func main() {
   fmt.Println(input_slice)
   for i := 0; i < iterations; i++ {
     C.run_neurons(net, inputs, outputs, 0, C.int(number_nodes), C.int(number_nodes - 1))
+    fmt.Println(output_slice)
     temp_ptr, temp_slice := inputs, input_slice
     inputs, input_slice = outputs, output_slice
     outputs, output_slice = temp_ptr, temp_slice

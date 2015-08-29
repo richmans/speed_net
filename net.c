@@ -6,7 +6,7 @@
 #define weight(i,w) ((w < 127) ? pull_down(i,w) : pull_up(i,w))
 #include <stdio.h>
 #include "net.h"
-void run_neurons(void* net_ptr, void* inputs_ptr, void* outputs_ptr, int start_index, int number, int max_index) {
+void run_neurons(void* net_ptr, void* inputs_ptr, void* outputs_ptr, int start_index, int number, int network_size) {
   unsigned char* net = ((unsigned char*)net_ptr);
   unsigned char* inputs = ((unsigned char*)inputs_ptr);
   unsigned char* outputs = ((unsigned char*)outputs_ptr);
@@ -19,7 +19,7 @@ void run_neurons(void* net_ptr, void* inputs_ptr, void* outputs_ptr, int start_i
     int sum = 0;
     for(int input = 0; input < NUMBER_INPUTS; input += 1) {
       signed char input_offset = net[idx * NEURON_SIZE + input];
-      int input_index = (idx + input_offset) % (max_index + 1);
+      int input_index = (idx + input_offset) % (network_size);
       unsigned char input_value = inputs[input_index];
       //printf("Input index %d", input_index);
       unsigned char input_weight = net[idx * NEURON_SIZE + input + NUMBER_INPUTS];

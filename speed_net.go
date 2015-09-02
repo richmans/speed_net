@@ -3,20 +3,37 @@ package main
 import "fmt"
 import "math/rand"
 import "runtime"
+import "time"
 
 const WEIGHT_OFFSET = 10
 const NUMBER_INPUTS = 5
 const NEURON_SIZE = 1 + 2 * NUMBER_INPUTS
 
 type Network struct {
-  net []byte
+  network_size int
   inputs []byte
   outputs []byte
   job_size int
-  network_size int
+  input_nodes []int
+  output_nodes []int
+  net []byte
 }
 
-func calculate_weight(value int, weight int) (int){
+func (n *Network) get_outputs() ([]byte) {
+  result := make([]byte, len(n.outputs))
+  for idx, _ := range n.outputs {
+    result[idx] = n.outputs[idx]
+  }
+  return result
+}
+
+func (n *Network) set_inputs(inputs []byte) {
+  for idx, _ := range n.inputs {
+    n.inputs[idx] = inputs[idx]
+  }
+}
+
+func (n *Network) calculate_weight(value int, weight int) (int){
   if weight < 127 {
     return value - value * ((127.0 - weight) / 255) 
   } else {
@@ -41,10 +58,10 @@ func (network *Network) run_neurons(start_index int) {
       input_value := network.inputs[input_index]
       input_weight := network.net[idx * NEURON_SIZE + input + NUMBER_INPUTS];
       //printf("Input %u, weight %u, offset %u\n", input, input_weight, input_offset);
-      sum += calculate_weight(int(input_value), int(input_weight));
+      sum += network.calculate_weight(int(input_value), int(input_weight));
     }
     total := sum / NUMBER_INPUTS;
-    output := calculate_weight(total, int(node_weight));
+    output := network.calculate_weight(total, int(node_weight));
     network.outputs[idx] = byte(output);
   }
 }
@@ -53,6 +70,12 @@ func (network *Network) run_neurons(start_index int) {
 func randomize_buffer(slice []byte) {
   for idx, _ := range slice {
     slice[idx] = byte(rand.Intn(256))
+  }
+}
+
+func randomize_nodes(slice []int, max int) {
+  for idx, _ := range slice {
+    slice[idx] = rand.Intn(max)
   }
 }
 
@@ -69,7 +92,6 @@ func worker(requests chan int,
 
 func start_workers(n int, network *Network) (chan int, chan int){
   q_size := (network.network_size / network.job_size) + 10
-  fmt.Printf("Q %d\n", q_size)
   requests := make(chan int, q_size)
   responses := make(chan int, q_size)
   for i:=0; i< n; i++ {
@@ -97,30 +119,38 @@ func main() {
   random_seed := 120101
   iterations := 100
   num_workers := 8
+  number_inputs := 4
+  number_outputs := 4
   job_size := number_nodes / num_workers
   fmt.Println("Initializing...")
   runtime.GOMAXPROCS(num_workers * 2 + 10)
   var net = make([]byte, number_nodes * NEURON_SIZE)
   var inputs = make([]byte, number_nodes)
   var outputs = make([]byte, number_nodes)
+  var input_nodes = make([]int, number_inputs)
+  var output_nodes = make([]int, number_outputs)
   
   // randomize the network
   rand.Seed(int64(random_seed))
   randomize_buffer(net)
   randomize_buffer(inputs)
-  
+  randomize_nodes(input_nodes, number_nodes)
+  randomize_nodes(output_nodes, number_nodes)
   network := &Network{
     net: net,
     inputs: inputs,
     outputs: outputs,
     job_size: job_size,
     network_size: number_nodes,
+    input_nodes: input_nodes,
+    output_nodes: output_nodes,
   }
   
   requests, responses := start_workers(num_workers, network)
   
   fmt.Println("Now running")
   fmt.Println(inputs[0:20])
+  t0 := time.Now()
   for i := 0; i < iterations; i++ {
     
     //swap the input and output buffers
@@ -130,6 +160,8 @@ func main() {
     inputs = outputs
     outputs = temp_ptr
   }
+  t1 := time.Now()
   fmt.Println(outputs[0:20])
   fmt.Printf("All done...\n")
+  fmt.Printf("The whole thing took %v to run.\n", t1.Sub(t0))
 }

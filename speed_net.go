@@ -20,16 +20,22 @@ type Network struct {
 }
 
 func (n *Network) get_outputs() ([]byte) {
-  result := make([]byte, len(n.outputs))
-  for idx, _ := range n.outputs {
-    result[idx] = n.outputs[idx]
+  result := make([]byte, len(n.output_nodes))
+  for idx, _ := range n.output_nodes {
+    result[idx] = n.outputs[n.output_nodes[idx]]
   }
   return result
 }
 
+func (network *Network) swap() {
+  temp_ptr := network.inputs
+  network.inputs = network.outputs
+  network.outputs = temp_ptr
+}
+
 func (n *Network) set_inputs(inputs []byte) {
-  for idx, _ := range n.inputs {
-    n.inputs[idx] = inputs[idx]
+  for idx, _ := range n.input_nodes {
+    n.inputs[n.input_nodes[idx]] = inputs[idx]
   }
 }
 
@@ -115,7 +121,7 @@ func run_network(requests chan int, responses chan int, job_size int, network_si
   
 }
 func main() {
-  number_nodes := 10000000
+  number_nodes := 10000
   random_seed := 120101
   iterations := 100
   num_workers := 8
@@ -145,23 +151,20 @@ func main() {
     input_nodes: input_nodes,
     output_nodes: output_nodes,
   }
-  
+  network.set_inputs([]byte{43,112,231,195})
   requests, responses := start_workers(num_workers, network)
   
   fmt.Println("Now running")
-  fmt.Println(inputs[0:20])
+  fmt.Println(network.get_outputs())
+
   t0 := time.Now()
   for i := 0; i < iterations; i++ {
-    
-    //swap the input and output buffers
     run_network(requests, responses, job_size, number_nodes)
-    //fmt.Println(output[0:20])
-    temp_ptr := inputs
-    inputs = outputs
-    outputs = temp_ptr
+    network.swap()
+    //fmt.Println(network.get_outputs())
   }
   t1 := time.Now()
-  fmt.Println(outputs[0:20])
+  
   fmt.Printf("All done...\n")
   fmt.Printf("The whole thing took %v to run.\n", t1.Sub(t0))
 }

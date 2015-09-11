@@ -1,9 +1,6 @@
 package main
 
-import "fmt"
 import "math/rand"
-import "runtime"
-import "time"
 
 const WEIGHT_OFFSET = 10
 const NUMBER_INPUTS = 5
@@ -17,6 +14,35 @@ type Network struct {
   input_nodes []int
   output_nodes []int
   net []byte
+}
+
+func RandomNetwork(number_nodes int, job_size int) (*Network) {
+  random_seed := 120101
+  number_inputs := 4
+  number_outputs := 4
+  var net = make([]byte, number_nodes * NEURON_SIZE)
+  var inputs = make([]byte, number_nodes)
+  var outputs = make([]byte, number_nodes)
+  var input_nodes = make([]int, number_inputs)
+  var output_nodes = make([]int, number_outputs)
+  
+  // randomize the network
+  rand.Seed(int64(random_seed))
+  randomize_buffer(net)
+  randomize_buffer(inputs)
+  randomize_nodes(input_nodes, number_nodes)
+  randomize_nodes(output_nodes, number_nodes)
+  network := &Network{
+    net: net,
+    inputs: inputs,
+    outputs: outputs,
+    job_size: job_size,
+    network_size: number_nodes,
+    input_nodes: input_nodes,
+    output_nodes: output_nodes,
+  }
+  network.set_inputs([]byte{43,112,231,195})
+  return network
 }
 
 func (n *Network) get_outputs() ([]byte) {
@@ -85,86 +111,4 @@ func randomize_nodes(slice []int, max int) {
   }
 }
 
-func worker(requests chan int, 
-  responses chan int, 
-  network *Network,
-  worker_id int) {
-  
-    for request := range requests {
-      network.run_neurons(request)
-      responses <- request
-    }
-}
 
-func start_workers(n int, network *Network) (chan int, chan int){
-  q_size := (network.network_size / network.job_size) + 10
-  requests := make(chan int, q_size)
-  responses := make(chan int, q_size)
-  for i:=0; i< n; i++ {
-    fmt.Printf("Worker %d started\n", i)
-    go worker(requests, responses, network, i)
-  }
-  return requests, responses
-}
-
-func run_network(requests chan int, responses chan int, job_size int, network_size int) {
-  num_requests := 0
-  for i := 0;i < network_size; i += job_size{
-    requests <- i
-    num_requests += 1
-  }
-  
-  for ; num_requests > 0; {
-    <- responses
-    num_requests -= 1
-  }
-  
-}
-func performance() {
-  number_nodes := 10000
-  random_seed := 120101
-  iterations := 1
-  num_workers := 8
-  number_inputs := 4
-  number_outputs := 4
-  job_size := number_nodes / num_workers
-  fmt.Println("Initializing...")
-  runtime.GOMAXPROCS(num_workers * 2 + 10)
-  var net = make([]byte, number_nodes * NEURON_SIZE)
-  var inputs = make([]byte, number_nodes)
-  var outputs = make([]byte, number_nodes)
-  var input_nodes = make([]int, number_inputs)
-  var output_nodes = make([]int, number_outputs)
-  
-  // randomize the network
-  rand.Seed(int64(random_seed))
-  randomize_buffer(net)
-  randomize_buffer(inputs)
-  randomize_nodes(input_nodes, number_nodes)
-  randomize_nodes(output_nodes, number_nodes)
-  network := &Network{
-    net: net,
-    inputs: inputs,
-    outputs: outputs,
-    job_size: job_size,
-    network_size: number_nodes,
-    input_nodes: input_nodes,
-    output_nodes: output_nodes,
-  }
-  network.set_inputs([]byte{43,112,231,195})
-  requests, responses := start_workers(num_workers, network)
-  
-  fmt.Println("Now running")
-  fmt.Println(network.get_outputs())
-
-  t0 := time.Now()
-  for i := 0; i < iterations; i++ {
-    run_network(requests, responses, job_size, number_nodes)
-    network.swap()
-    //fmt.Println(network.get_outputs())
-  }
-  t1 := time.Now()
-  
-  fmt.Printf("All done...\n")
-  fmt.Printf("The whole thing took %v to run.\n", t1.Sub(t0))
-}

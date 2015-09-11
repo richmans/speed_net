@@ -1,7 +1,7 @@
 package main
 import "fmt"
-const NUM_WORKERS = 16
-const QUEUE_SIZE = 20
+const NUM_WORKERS = 32
+const QUEUE_SIZE = 40
 
 type runRequest struct {
   network *Network

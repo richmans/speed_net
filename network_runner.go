@@ -1,6 +1,6 @@
 package main
 import "fmt"
-const NUM_WORKERS = 8
+const NUM_WORKERS = 16
 const QUEUE_SIZE = 20
 
 type runRequest struct {

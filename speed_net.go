@@ -5,7 +5,7 @@ import "runtime"
 import "time"
 func startPerformance() {
   iterations := 10000
-  num_workers := 8
+  num_workers := 16
   number_nodes := 100000
   job_size := number_nodes / num_workers
   fmt.Println("Initializing...")
